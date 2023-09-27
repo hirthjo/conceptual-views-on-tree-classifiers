@@ -1,0 +1,236 @@
+* Init Variables and stuff
+** deps
+#+BEGIN_SRC clojure
+(use 'clojure.data.csv)
+#+END_SRC
+** Titanic is to slow
+#+BEGIN_SRC clojure
+(defn fake-titanic [ctx minsup]
+  (let [size (-> ctx objects count)]
+    (asd-> ctx $
+           concepts
+           (filter #(<= minsup ;(/
+                               (-> % first count) 
+                               ;size)
+                       ) $)
+           (make-lattice-nc $
+                       (fn <= [[A _] [C _]]
+                         (subset? A C))
+                       (fn inf [[A _] [C _]]
+                         (let [A+C (intersection A C)]
+                           [A+C (object-derivation ctx A+C)]))
+                       (fn sup [[_ B] [_ D]]
+                         (let [B+D (intersection B D)]
+                           [(attribute-derivation ctx B+D) B+D]))) ) ))
+#+END_SRC
+
+** Paths
+#+BEGIN_SRC clojure
+(def dtree-scale-path "../output/rank_car100/RF/rank_car_dtree-order-scale.csv")
+(def tree-pred-scale-path "../output/rank_car100/RF/rank_car_product-scale.csv")
+(def inter-pred-scale-path "../output/rank_car100/RF/rank_car_interordinal-scale.csv")
+(def nom-scale-path "../output/rank_car100/RF/rank_car_nominal-scale.csv")
+#+END_SRC
+** Load medoids
+#+BEGIN_SRC clojure
+(def medoid-path "../output/rank_car100/medoids.csv")
+(def medoid9-path "../output/rank_car100/medoids9.csv")
+#+END_SRC
+** Load medoid contexts
+#+BEGIN_SRC clojure
+(def medoid-objs
+  (->> medoid-path
+      slurp
+      read-csv
+      (map first)
+      rest set))
+(def medoid9-objs
+  (->> medoid9-path
+      slurp
+      read-csv
+      (map first)
+      rest set))
+
+(def medoid-objs-p
+  (->> medoid-path
+      slurp
+      read-csv
+      (filter #(= (last %) "P"))
+      (map first)
+       set))
+(def medoid-objs-n
+  (->> medoid-path
+      slurp
+      read-csv
+      (filter #(= (last %) "N"))
+      (map first)
+       set))
+
+(def medoid9-objs-p
+  (->> medoid9-path
+      slurp
+      read-csv
+      (filter #(= (last %) "P"))
+      (map first)
+       set))
+(def medoid9-objs-n
+  (->> medoid9-path
+      slurp
+      read-csv
+      (filter #(= (last %) "N"))
+      (map first)
+       set))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(def classes-ctx 
+  (read-context "../output/rank_car100/rank_car_class.csv" 
+                :named-binary-csv))
+
+(defn class-value-fn
+  [ctx]
+  (let [P (attribute-derivation classes-ctx #{"P"})]
+    (fn [[_ B]]
+      (let [A (attribute-derivation ctx B)]
+        [(str (count (intersection A P)) "P, " 
+              (count (difference A P)) "N")]))))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(def tree-pred-scale (read-context tree-pred-scale-path))
+(def inter-pred-scale (read-context inter-pred-scale-path))
+
+(def tree-pred-scale-medoids (make-context medoid-objs (attributes tree-pred-scale) (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids (make-context medoid-objs (attributes inter-pred-scale) (incidence-relation inter-pred-scale)))
+
+(def tree-pred-scale-medoids9 (make-context medoid9-objs (attributes tree-pred-scale) (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids9 (make-context medoid9-objs (attributes inter-pred-scale) (incidence-relation inter-pred-scale)))
+#+END_SRC
+*** Filter attributes by importance
+important attributes
+| Feature  |              Entropy |          Permutation |
+| buying   |  0.11760969298704874 |  0.10364583333333333 |
+| maint    |  0.11628969132034625 |   0.0970486111111111 |
+| doors    | 0.040330548099820805 | 0.031712962962962964 |
+| persons  |   0.3155618551699954 |  0.20752314814814815 |
+| lug_boot |   0.0634818421697859 | 0.061921296296296315 |
+| safety   |  0.34672637025300296 |  0.23576388888888894 |
+#+BEGIN_SRC clojure
+(def imp-attr (filter (fn [a] (some #(.contains a %) #{"buying" "maint" "safety" "persons"})) 
+        (attributes tree-pred-scale)))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(def tree-pred-scale-medoids-p (make-context medoid-objs-p imp-attr (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids-p (make-context medoid-objs-p imp-attr (incidence-relation inter-pred-scale)))
+
+(def tree-pred-scale-medoids-n (make-context medoid-objs-n imp-attr (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids-n (make-context medoid-objs-n imp-attr (incidence-relation inter-pred-scale)))
+#+END_SRC
+| scale | class | min-cnt | concepts |
+|-------+-------+---------+----------|
+| inter | p     |       5 |       45 |
+| tree  | p     |       6 |       11 |
+|-------+-------+---------+----------|
+| inter | p     |       6 |       26 |
+| tree  | p     |       5 |       25 |
+| inter | n     |       3 |       25 |
+| tree  | n     |       3 |       25 |
+
+*** only <
+#+BEGIN_SRC clojure
+(def <attr (filter (fn [a] (.contains a "<"))
+                   imp-attr))
+
+(def tree-pred-scale-medoids-p-< (make-context medoid-objs-p <attr (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids-p-< (make-context medoid-objs-p <attr (incidence-relation inter-pred-scale)))
+
+(def tree-pred-scale-medoids-n-< (make-context medoid-objs-n <attr (incidence-relation tree-pred-scale)))
+(def inter-pred-scale-medoids-n-< (make-context medoid-objs-n <attr (incidence-relation inter-pred-scale)))
+#+END_SRC
+| scale | class | min-cnt | concepts |
+|-------+-------+---------+----------|
+| inter | p     |       3 |       21 |
+| tree  | p     |       3 |       23 |
+| inter | n     |       1 |       20 |
+| tree  | n     |       1 |       22 |
+
+Add valuations for class purity
+
+#+BEGIN_SRC clojure
+(def layout-files (let [directory (clojure.java.io/file "pics/")
+                        files (file-seq directory)] 
+                    (filter #(re-find #"layout" (.getName %)) files)))
+
+(doseq [L layout-files]
+        (asd-> L $
+            .getPath
+            read-layout
+            (update-valuations year-value-fn)
+            (write-layout :tikz $ (clojure.string/replace (.getPath L)
+                                                          "layout"
+                                                          "tikz"))))
+#+END_SRC
+** Load all scales for quantitative measures
+#+BEGIN_SRC clojure
+(def nom-scale (read-context nom-scale-path))
+(def dtree-scale (read-context dtree-scale-path))
+(def tree-pred-scale (read-context tree-pred-scale-path))
+(def inter-pred-scale (read-context inter-pred-scale-path))
+#+END_SRC
+*** Split by class
+#+BEGIN_SRC clojure
+(def positive-objects (attribute-derivation classes-ctx #{"P"}))
+(def negative-objects (attribute-derivation classes-ctx #{"N"}))
+#+END_SRC
+
+*** Conceptual Difference
+#+BEGIN_SRC clojure
+(defn conceptual-difference [ctx1 ctx2]
+  (let [int-1 (-> ctx1 intents set) 
+        int-2 (-> ctx2 intents set)
+        diff (difference int-1 int-2)]
+    [int-1 int-2 diff]))
+
+(defn class-conceptual-difference [ctx]
+  (let [ctx-p (make-context positive-objects (attributes ctx) (incidence-relation ctx))
+        ctx-n (make-context negative-objects (attributes ctx) (incidence-relation ctx))]
+    (conceptual-difference ctx-p ctx-n)))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(let [[I1 I2 Diff] (class-conceptual-difference nom-scale)]
+  (println "nom-scale")
+  (println "positive concepts " (count I1)
+           " negative concepts " (count I2)
+           " difference " (count Diff)))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(let [[I1 I2 Diff] (class-conceptual-difference dtree-scale)]
+  (println "dtree-scale")
+  (println "positive concepts " (count I1)
+           " negative concepts " (count I2)
+           " difference " (count Diff)))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(let [[I1 I2 Diff] (class-conceptual-difference tree-pred-scale)]
+  (println "tree-pred-scale")
+  (println "positive concepts " (count I1)
+           " negative concepts " (count I2)
+           " difference " (count Diff)))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(let [[I1 I2 Diff] (class-conceptual-difference inter-pred-scale)]
+  (println "inter-pred-scale")
+  (println "positive concepts " (count I1)
+           " negative concepts " (count I2)
+           " difference " (count Diff)))
+#+END_SRC
+*NOTE*: tree predicate view has additional thresholds that are
+ artifacts of the encoding, i.e., geq 1.0. By removing those, the
+ interordinal predicate view and tree predicate view on the center
+ objects bearing the negative class label are equal. Other diagrams are uneffected
+ 

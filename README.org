@@ -1,0 +1,12 @@
+* [[https://doi.org/10.1016/j.ijar.2023.108930][Conceptual Views on Tree Ensemble Classifiers]]
+This repository contains the code used for our analysis in [[https://doi.org/10.1016/j.ijar.2023.108930][Conceptual
+Views on Tree Ensemble Classifiers]]. Detailed descriptions on the
+experiments and the used data can be found in the article. To run the
+experiments place the data set in the data directory, run the
+~init.sh~ skript, install the python dependencies and start the
+scripts you want from the src directory or the tree2ctx clojure
+project.
+
+Pleace cite the following article when using the presented methods:
+
+/Hanika, T., Hirth, J.: Conceptual Views on Tree Ensemble Classifiers International Journal of Approximate Reasoning. 108930 (2023)./

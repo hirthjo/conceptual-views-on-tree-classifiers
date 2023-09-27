@@ -1,0 +1,15 @@
+* Usage
+** Python to compute the tree classifier
+execute python from data directory
+#+BEGIN_SRC bash
+python fun_with_trees.py -d bin_car -t binaryClass -r 100
+#+END_SRC
+or manually
+#+BEGIN_SRC clojure
+(-main "bin_car.csv" "-m"  "C")
+#+END_SRC
+** clojure only to compute the scales
+execute from the tree2ctx directory
+#+BEGIN_SRC bash
+java -jar target/uberjar/tree2ctx-0.2.0-SNAPSHOT-standalone.jar bin_car.csv -m C
+#+END_SRC
